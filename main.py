@@ -1,8 +1,11 @@
+from model import CustomCNN, weights_init
+from data import ImageDataset, TestDataset
+
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.optim import optim
-from torch.utils.data import Dataset, DataLoader
+import torch.optim as optim
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score
 
@@ -88,7 +91,7 @@ loader_eval = DataLoader(data_eval, batch_size=64, shuffle=False, num_workers=4)
 test_data = TestDataset("data/test_manifest.csv", transforms=data_transforms_test)
 test_loader = DataLoader(test_data, batch_size=64, shuffle=False, num_workers=4)
 
-net = CNN()
+net = CustomCNN()
 net.apply(weights_init)
 net = net.cuda()
 

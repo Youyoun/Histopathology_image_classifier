@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 
-class CNN(nn.Module):
+class CustomCNN(nn.Module):
     def __init__(self):
         super().__init__()
 
@@ -38,7 +38,6 @@ class CNN(nn.Module):
             nn.LeakyReLU(),
             # nn.Dropout(0.5),
             nn.Linear(256, 2),
-            # nn.Sigmoid()
         )
         return
 

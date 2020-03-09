@@ -1,5 +1,5 @@
 from model import CustomCNN, weights_init
-from data import ImageDataset, TestDataset
+from data import ImageDataset, train_transforms, test_transforms
 
 import numpy as np
 import torch
@@ -9,33 +9,40 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score
 
+GPU = False
 
-def train(epochs):
+
+def mean_loss(losses, trainset, ep):
+    return sum(losses[-len(trainset):]) / (len(losses) if ep == 0 else len(trainset))
+
+
+def train(model, loss_fn, optimizer, trainset, valset, n_epochs, scheduler=None, gpu=False):
     # Train
-    net.train()
+    model.train()
     losses = []
 
-    for ep in range(epochs):
-        net.train()
-        pbar = tqdm(total=len(loader))
-        for x, y in loader:
-            x, y = x.cuda(), y.cuda()
+    for ep in range(n_epochs):
+        model.train()
+        pbar = tqdm(total=len(trainset))
+        for x, y in trainset:
+            if gpu:
+                x, y = x.cuda(), y.cuda()
 
-            preds = net(x)
-            loss = criterion(preds, y)
+            preds = model(x)
+            loss = loss_fn(preds, y)
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
 
             losses.append(loss.item())
             pbar.update()
-            pbar.set_description(
-                f"Epoch {ep:.3f}, Loss {losses[-1]:.3f} Mean Loss {sum(losses[-len(loader):]) / (len(losses) if ep == 0 else len(loader)):.3f}")
-        exp_lr_scheduler.step()
-        result = evaluate(ep)
+            pbar.set_description(f"Epoch {ep + 1}, Loss {losses[-1]:.3f} Mean Loss {mean_loss(losses, trainset, ep):.3f}")
+        if scheduler is not None:
+            scheduler.step()
+        result = evaluate(model, valset, ep, gpu)
         torch.save({
             "epoch": ep,
-            "model": net.state_dict(),
+            "model": model.state_dict(),
             "optimizer": optimizer.state_dict(),
             "loss": losses,
             "result": result
@@ -44,19 +51,18 @@ def train(epochs):
     return losses
 
 
-def evaluate(epoch):
+def evaluate(model, valset, n_epoch, gpu=False):
     # Validate
-
-    net.eval()
+    model.eval()
     true_labels = []
     all_preds = []
     all_preds_probas = []
 
     with torch.no_grad():
-        for x, y in tqdm(loader_eval):
-            x, y = x.cuda(), y
-
-            out = nn.functional.softmax(net(x).cpu(), dim=1)
+        for x, y in tqdm(valset):
+            if gpu:
+                x, y = x.cuda(), y
+            out = nn.functional.softmax(model(x).cpu(), dim=1)
             preds = torch.argmax(out, dim=1)
             all_preds.extend(preds.tolist())
             all_preds_probas.extend([e[1] for e in out.tolist()])
@@ -81,26 +87,24 @@ def test(mdl):
 
 
 # Init everything
+train_set = ImageDataset("data/train_manifest.csv", transform=train_transforms)
+train_loader = DataLoader(train_set, batch_size=64, shuffle=True, num_workers=4)
 
-data = ImageDataset("data/train_manifest.csv", transforms=data_transforms)
-loader = DataLoader(data, batch_size=64, shuffle=True, num_workers=4)
+eval_set = ImageDataset("data/val_manifest.csv", transform=test_transforms)
+eval_loader = DataLoader(eval_set, batch_size=64, shuffle=False, num_workers=4)
 
-data_eval = ImageDataset("data/val_manifest.csv", transforms=data_transforms_test)
-loader_eval = DataLoader(data_eval, batch_size=64, shuffle=False, num_workers=4)
+test_set = ImageDataset("data/test_manifest.csv", transform=test_transforms)
+test_loader = DataLoader(test_set, batch_size=64, shuffle=False, num_workers=4)
 
-test_data = TestDataset("data/test_manifest.csv", transforms=data_transforms_test)
-test_loader = DataLoader(test_data, batch_size=64, shuffle=False, num_workers=4)
-
-net = CustomCNN()
-net.apply(weights_init)
-net = net.cuda()
+model = CustomCNN()
+model.apply(weights_init)
+if GPU:
+    model = model.cuda()
 
 criterion = nn.CrossEntropyLoss(reduction="sum")
 criterion = criterion.cuda()
 
-# optimizer = SGD(net.parameters(), lr=0.05, momentum=0.9)
-optimizer = optim.SGD(net.parameters(), lr=0.01)
+optimizer = optim.SGD(model.parameters(), lr=0.01)
 exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
-print(net)
 
-train(100)
+train(model, criterion, optimizer, train_loader, eval_loader, 100, exp_lr_scheduler, GPU)

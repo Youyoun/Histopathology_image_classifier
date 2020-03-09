@@ -11,7 +11,7 @@ class ImageDataset(Dataset):
         super().__init__()
         self.manifest = manifest
         with open(self.manifest) as f:
-            data = [x.split(",") for x in f.read().splitlines()][:128]
+            data = [x.split(",") for x in f.read().splitlines()]
         self.images_paths = [d[0] for d in data]
         self.labels = [int(d[1]) if d[1] != "" else -1 for d in data]
         self.transform = transform

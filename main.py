@@ -33,8 +33,7 @@ def train(model, loss_fn, optimizer, trainset, valset, n_epochs, scheduler=None,
 
             if i % LOG_EVERY == 0:
                 acc = accuracy_score(torch.argmax(preds.detach().cpu(), dim=1), y.detach().cpu())
-                logger.add_loss("train", loss.item(), i + ep * LOG_EVERY)
-                logger.add_accuracy("train", acc, i + ep * LOG_EVERY)
+                logger.add_training_scalars(loss.item(), acc, i + ep * LOG_EVERY)
             pbar.update()
             pbar.set_description(f"Epoch {ep + 1}, Loss {logger.losses[-1]:.3f}")
         if scheduler is not None:
@@ -56,26 +55,31 @@ def evaluate(model, valset, n_epoch, gpu=False):
     # Validate
     model.eval()
     true_labels = []
+    losses = []
     all_preds = []
     all_preds_probas = []
 
     with torch.no_grad():
         for x, y in tqdm(valset):
             if gpu:
-                x, y = x.cuda(), y
-            out = nn.functional.softmax(model(x).cpu(), dim=1)
+                x, y = x.cuda(), y.cuda()
+            out = model(x).cpu()
+            losses.append(criterion(out, y).item())
+            out = nn.functional.softmax(out, dim=1)
             preds = torch.argmax(out, dim=1)
             all_preds.extend(preds.tolist())
             all_preds_probas.extend([e[1] for e in out.tolist()])
-            true_labels.extend(y)
+            true_labels.extend(y.cpu())
     true_labels = np.array(true_labels)
     all_preds = np.array(all_preds)
+    loss = np.mean(losses)
     acc = accuracy_score(true_labels, all_preds)
     precision = precision_score(true_labels, all_preds)
     recall = recall_score(true_labels, all_preds)
     roc = roc_auc_score(true_labels, all_preds_probas)
-    res = f"Model validation: Accuracy {acc}, Precision {precision}, Recall {recall}, ROC {roc}"
-    return res
+    print(f"Model validation: Accuracy {acc}, Precision {precision}, Recall {recall}, ROC {roc}")
+    logger.add_validation_scalars(loss, acc, precision, recall, roc, n_epoch)
+    return acc
 
 
 def test(mdl):

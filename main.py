@@ -53,7 +53,7 @@ def train(model, loss_fn, optimizer, trainset, valset, n_epochs, scheduler=None,
 
             if i % LOG_EVERY == 0:
                 acc = accuracy_score(torch.argmax(preds.detach().cpu(), dim=1), y.detach().cpu())
-                logger.add_training_scalars(loss.item(), acc, i + ep * LOG_EVERY)
+                logger.add_training_scalars(loss.item(), acc, i + ep * len(trainset))
             pbar.update()
             pbar.set_description(f"Epoch {ep + 1}, Loss {logger.losses[-1]:.3f}")
         if scheduler is not None:

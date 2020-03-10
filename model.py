@@ -63,7 +63,7 @@ class BinaryClassifier(nn.Module):
     def __init__(self, net_name="resnet18"):
         super().__init__()
         if net_name not in models:
-            raise ValueError("Model not adapted to binary classification.")
+            raise ValueError(f"Model {net_name} has not been adapted to binary classification.")
         print(f"Using {net_name} model not pretrained on Imagenet")
         self.net = models[net_name]()
         if "resnet" in net_name:

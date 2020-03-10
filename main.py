@@ -1,4 +1,6 @@
-from model import CustomCNN, weights_init
+import argparse
+
+from model import CustomCNN, BinaryClassifier, weights_init, models
 from data import ImageDataset, train_transforms, test_transforms
 from utils import Logger
 
@@ -9,10 +11,26 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import torch.utils.tensorboard
-from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score
+from sklearn.metrics import accuracy_score
 
-GPU = False
-LOG_EVERY = 50
+parser = argparse.ArgumentParser()
+group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument("--train", action="store_true")
+group.add_argument("--test", action="store_true")
+opts, _ = parser.parse_known_args()
+if opts.train:
+    parser.add_argument("--train-manifest", type=str, required=True)
+    parser.add_argument("--val-manifest", type=str, required=True)
+elif opts.test:
+    parser.add_argument("--test-manifest", type=str, required=True)
+parser.add_argument("--model", choices=models, default="resnet34")
+parser.add_argument("--lr", type=int, default=0.01)
+parser.add_argument("--gpu", action="store_true")
+parser.add_argument("--exp-name", type=str, default=None, help="Log dir suffix")
+parser.add_argument("--log-every", type=int, default=50, help="Log metrics every input number")
+args = parser.parse_args()
+
+LOG_EVERY = args.log_every
 
 
 def train(model, loss_fn, optimizer, trainset, valset, n_epochs, scheduler=None, gpu=False):
@@ -92,29 +110,36 @@ def test(mdl):
 
 
 if __name__ == "__main__":
+    print(args)
     # Init everything
-    train_set = ImageDataset("data/train_manifest.csv", transform=train_transforms)
-    train_loader = DataLoader(train_set, batch_size=64, shuffle=True, num_workers=4)
-
-    eval_set = ImageDataset("data/val_manifest.csv", transform=test_transforms)
-    eval_loader = DataLoader(eval_set, batch_size=64, shuffle=False, num_workers=4)
-
-    test_set = ImageDataset("data/test_manifest.csv", transform=test_transforms)
-    test_loader = DataLoader(test_set, batch_size=64, shuffle=False, num_workers=4)
-
-    model = CustomCNN()
+    if args.model == "custom":
+        model = CustomCNN()
+    else:
+        model = BinaryClassifier(args.model)
     model.apply(weights_init)
-    if GPU:
-        model = model.cuda()
-
     criterion = nn.CrossEntropyLoss(reduction="sum")
-    criterion = criterion.cuda()
 
-    optimizer = optim.SGD(model.parameters(), lr=0.01)
-    exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
+    if args.gpu:
+        model = model.cuda()
+        criterion = criterion.cuda()
+
+    optimizer = optim.SGD(model.parameters(), lr=args.lr)
+    lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
     # Log some things
-    logger = Logger("-test1")
-    logger.add_general_data(model, train_loader, )
+    logger = Logger(args.exp_name)
 
-    train(model, criterion, optimizer, train_loader, eval_loader, 100, exp_lr_scheduler, GPU)
+    if args.train:
+        train_set = ImageDataset(args.train_manifest, transform=train_transforms)
+        train_loader = DataLoader(train_set, batch_size=64, shuffle=True, num_workers=4)
+
+        eval_set = ImageDataset(args.val_manifest, transform=test_transforms)
+        eval_loader = DataLoader(eval_set, batch_size=64, shuffle=False, num_workers=4)
+
+        logger.add_general_data(model, train_loader)
+        train(model, criterion, optimizer, train_loader, eval_loader, 100, lr_scheduler, args.gpu)
+    else:
+        test_set = ImageDataset(args.val_manifest, transform=test_transforms)
+        test_loader = DataLoader(test_set, batch_size=64, shuffle=False, num_workers=4)
+
+        test(model)

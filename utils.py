@@ -4,7 +4,10 @@ from torchvision.utils import make_grid
 
 class Logger:
     def __init__(self, exp_name=None):
-        self.writer = SummaryWriter(comment=exp_name)
+        logdir = None
+        if exp_name is not None:
+            logdir = f"runs/{exp_name}"
+        self.writer = SummaryWriter(logdir)
         self.train_batch = 0
         self.train_size = 0
         self.losses = []

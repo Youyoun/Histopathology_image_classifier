@@ -28,6 +28,7 @@ parser.add_argument("--lr", type=int, default=0.01)
 parser.add_argument("--gpu", action="store_true")
 parser.add_argument("--exp-name", type=str, default=None, help="Log dir suffix")
 parser.add_argument("--log-every", type=int, default=50, help="Log metrics every input number")
+parser.add_argument("--disable-transform", action="store_false")
 args = parser.parse_args()
 
 LOG_EVERY = args.log_every
@@ -66,7 +67,7 @@ def train(model, loss_fn, optimizer, trainset, valset, n_epochs, scheduler=None,
             "result": result
         }, f"models/model.{ep}.pth")
     print("Training Finished")
-    return logger.losses
+    return
 
 
 def evaluate(model, valset, n_epoch, gpu=False):
@@ -78,7 +79,7 @@ def evaluate(model, valset, n_epoch, gpu=False):
     all_preds_probas = []
 
     with torch.no_grad():
-        for x, y in tqdm(valset):
+        for x, y in tqdm(valset, desc="Validation: "):
             if gpu:
                 x, y = x.cuda(), y.cuda()
             out = model(x).cpu()
@@ -92,7 +93,6 @@ def evaluate(model, valset, n_epoch, gpu=False):
     all_preds = np.array(all_preds)
     loss = np.mean(losses)
     acc = accuracy_score(true_labels, all_preds)
-    print(f"Model validation: Loss: {loss}, Accuracy {acc}")
     logger.add_validation_scalars(loss, acc, true_labels, all_preds, n_epoch)
     return {"accuracy": acc, "loss": loss}
 
@@ -130,16 +130,16 @@ if __name__ == "__main__":
     logger = Logger(args.exp_name)
 
     if args.train:
-        train_set = ImageDataset(args.train_manifest, transform=train_transforms)
+        train_set = ImageDataset(args.train_manifest, train_transforms if not args.disable_transform else None)
         train_loader = DataLoader(train_set, batch_size=64, shuffle=True, num_workers=4)
 
-        eval_set = ImageDataset(args.val_manifest, transform=test_transforms)
+        eval_set = ImageDataset(args.val_manifest, test_transforms if not args.disable_transform else None)
         eval_loader = DataLoader(eval_set, batch_size=64, shuffle=False, num_workers=4)
 
         logger.add_general_data(model, train_loader)
         train(model, criterion, optimizer, train_loader, eval_loader, 100, lr_scheduler, args.gpu)
     else:
-        test_set = ImageDataset(args.val_manifest, transform=test_transforms)
+        test_set = ImageDataset(args.val_manifest, test_transforms if not args.disable_transform else None)
         test_loader = DataLoader(test_set, batch_size=64, shuffle=False, num_workers=4)
 
         test(model)

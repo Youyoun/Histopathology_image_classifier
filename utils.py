@@ -10,6 +10,8 @@ class Logger:
         self.writer = SummaryWriter(logdir)
         self.train_batch = 0
         self.train_size = 0
+        self.best_model_ep = 0
+        self.best_model_acc = 0
         self.losses = []
 
     def add_general_data(self, model, train_loader):
@@ -31,6 +33,10 @@ class Logger:
         self.writer.add_scalar(f"val/loss", loss, iter_)
         self.writer.add_scalar(f"val/acc", acc, iter_)
         self.writer.add_pr_curve("val/pr_curve", labels, probabilities)
+        if acc > self.best_model_acc:
+            print(f"New Best Model validation: Loss: {loss}, Accuracy {acc}")
+            self.best_model_acc = acc
+            self.best_model_ep = iter_
         self.writer.flush()
 
     def add_learning_rate(self, lr, iter_):

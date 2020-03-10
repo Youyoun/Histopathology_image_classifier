@@ -13,7 +13,7 @@ models = {
 class CustomCNN(nn.Module):
     def __init__(self):
         super().__init__()
-
+        self.name = "CustomCNN"
         self.conv1 = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=3, padding=1, stride=1),
             nn.LeakyReLU(),
@@ -62,6 +62,7 @@ class CustomCNN(nn.Module):
 class BinaryClassifier(nn.Module):
     def __init__(self, net_name="resnet18"):
         super().__init__()
+        self.name = net_name
         if net_name not in models:
             raise ValueError(f"Model {net_name} has not been adapted to binary classification.")
         print(f"Using {net_name} model not pretrained on Imagenet")

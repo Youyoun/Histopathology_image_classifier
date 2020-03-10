@@ -24,6 +24,7 @@ if opts.train:
 elif opts.test:
     parser.add_argument("--test-manifest", type=str, required=True)
 parser.add_argument("--model", choices=models, default="resnet34")
+parser.add_argument("--epochs", type=int, default=20)
 parser.add_argument("--lr", type=int, default=0.01)
 parser.add_argument("--gpu", action="store_true")
 parser.add_argument("--exp-name", type=str, default=None, help="Log dir suffix")
@@ -65,8 +66,8 @@ def train(model, loss_fn, optimizer, trainset, valset, n_epochs, scheduler=None,
             "optimizer": optimizer.state_dict(),
             "loss": logger.losses,
             "result": result
-        }, f"models/model.{ep}.pth")
-    print("Training Finished")
+        }, f"models/model_{model.name}_ep{ep}_{result['accuracy']:.3f}.pth")
+    print(f"Training Finished. Best model {logger.best_model_ep}, accuracy: {logger.best_model_acc}")
     return
 
 
@@ -127,7 +128,7 @@ if __name__ == "__main__":
     lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
     # Log some things
-    logger = Logger(args.exp_name)
+    logger = Logger(f"{model.name}_ep{args.epochs}_lr{args.lr}_{args.exp_name}")
 
     if args.train:
         train_set = ImageDataset(args.train_manifest, train_transforms if not args.disable_transform else None)
@@ -137,7 +138,7 @@ if __name__ == "__main__":
         eval_loader = DataLoader(eval_set, batch_size=64, shuffle=False, num_workers=4)
 
         logger.add_general_data(model, train_loader)
-        train(model, criterion, optimizer, train_loader, eval_loader, 100, lr_scheduler, args.gpu)
+        train(model, criterion, optimizer, train_loader, eval_loader, args.epochs, lr_scheduler, args.gpu)
     else:
         test_set = ImageDataset(args.val_manifest, test_transforms if not args.disable_transform else None)
         test_loader = DataLoader(test_set, batch_size=64, shuffle=False, num_workers=4)

@@ -12,7 +12,7 @@ import torch.utils.tensorboard
 from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score
 
 GPU = False
-LOG_EVERY = 1
+LOG_EVERY = 50
 
 
 def train(model, loss_fn, optimizer, trainset, valset, n_epochs, scheduler=None, gpu=False):
@@ -74,12 +74,9 @@ def evaluate(model, valset, n_epoch, gpu=False):
     all_preds = np.array(all_preds)
     loss = np.mean(losses)
     acc = accuracy_score(true_labels, all_preds)
-    precision = precision_score(true_labels, all_preds)
-    recall = recall_score(true_labels, all_preds)
-    roc = roc_auc_score(true_labels, all_preds_probas)
-    print(f"Model validation: Accuracy {acc}, Precision {precision}, Recall {recall}, ROC {roc}")
-    logger.add_validation_scalars(loss, acc, precision, recall, roc, n_epoch)
-    return acc
+    print(f"Model validation: Loss: {loss}, Accuracy {acc}")
+    logger.add_validation_scalars(loss, acc, true_labels, all_preds, n_epoch)
+    return {"accuracy": acc, "loss": loss}
 
 
 def test(mdl):

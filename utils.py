@@ -24,12 +24,10 @@ class Logger:
         self.losses.append(loss)
         self.writer.flush()
 
-    def add_validation_scalars(self, loss, acc, precision, recall, roc_aur, iter_):
+    def add_validation_scalars(self, loss, acc, labels, probabilities, iter_):
         self.writer.add_scalar(f"val/loss", loss, iter_)
         self.writer.add_scalar(f"val/acc", acc, iter_)
-        self.writer.add_scalar(f"val/precision", precision, iter_)
-        self.writer.add_scalar(f"val/recall", recall, iter_)
-        self.writer.add_scalar(f"val/roc_aur", roc_aur, iter_)
+        self.writer.add_pr_curve("val/pr_curve", labels, probabilities)
         self.writer.flush()
 
     def add_learning_rate(self, lr, iter_):

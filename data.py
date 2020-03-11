@@ -3,7 +3,6 @@ from PIL import Image
 import torch
 from torch.utils.data import Dataset
 import torchvision.transforms.functional as TF
-from torchvision import transforms
 
 
 class ImageDataset(Dataset):
@@ -31,15 +30,3 @@ class ImageDataset(Dataset):
             img = TF.to_tensor(img)
 
         return img, self.labels[idx]
-
-
-train_transforms = transforms.Compose([
-    transforms.RandomHorizontalFlip(),
-    transforms.RandomVerticalFlip(),
-    transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-])
-test_transforms = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-])

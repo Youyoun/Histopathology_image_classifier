@@ -1,7 +1,7 @@
 import argparse
 
 from model import CustomCNN, BinaryClassifier, weights_init, models
-from data import ImageDataset, train_transforms, test_transforms
+from data import ImageDataset
 from utils import Logger
 
 import numpy as np
@@ -11,6 +11,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import torch.utils.tensorboard
+from torchvision import transforms
 from sklearn.metrics import accuracy_score
 
 parser = argparse.ArgumentParser()
@@ -30,7 +31,8 @@ parser.add_argument("--lr", type=int, default=0.01)
 parser.add_argument("--gpu", action="store_true")
 parser.add_argument("--exp-name", type=str, default=None, help="Log dir suffix")
 parser.add_argument("--log-every", type=int, default=50, help="Log metrics every input number")
-parser.add_argument("--disable-transform", action="store_false")
+parser.add_argument("--resize", type=int, default=None, help="Resize dimension for images")
+parser.add_argument("--disable-transform", action="store_true")
 args = parser.parse_args()
 
 LOG_EVERY = args.log_every
@@ -123,7 +125,6 @@ def save_test_results(image_paths, prediction):
 
 
 if __name__ == "__main__":
-    print(args)
     # Init everything
     if args.model == "custom":
         model = CustomCNN()
@@ -142,11 +143,31 @@ if __name__ == "__main__":
     # Log some things
     logger = Logger(f"{model.name}_ep{args.epochs}_lr{args.lr}_{args.exp_name}")
 
+    # Define data augments and transforms
+    if args.disable_transform:
+        train_transforms = None
+        test_transforms = None
+    else:
+        train_transforms = transforms.Compose([
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+
+        test_transforms = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+        if args.resize is not None:
+            train_transforms.transforms.insert(0, transforms.Resize(args.resize))
+            test_transforms.transforms.insert(0, transforms.Resize(args.resize))
+
     if args.train:
-        train_set = ImageDataset(args.train_manifest, train_transforms if not args.disable_transform else None)
+        train_set = ImageDataset(args.train_manifest, train_transforms)
         train_loader = DataLoader(train_set, batch_size=64, shuffle=True, num_workers=4)
 
-        eval_set = ImageDataset(args.val_manifest, test_transforms if not args.disable_transform else None)
+        eval_set = ImageDataset(args.val_manifest, test_transforms)
         eval_loader = DataLoader(eval_set, batch_size=64, shuffle=False, num_workers=4)
 
         logger.add_general_data(model, train_loader)
@@ -156,7 +177,7 @@ if __name__ == "__main__":
         model.load_state_dict(training_["model"])
         print(f"Loaded model {model.name} trained for {training_['epoch']} epochs. Results: {training_['result']}")
 
-        test_set = ImageDataset(args.test_manifest, test_transforms if not args.disable_transform else None)
+        test_set = ImageDataset(args.test_manifest, test_transforms)
         test_loader = DataLoader(test_set, batch_size=64, shuffle=False, num_workers=4)
 
         preds = test(model, test_loader, args.gpu)

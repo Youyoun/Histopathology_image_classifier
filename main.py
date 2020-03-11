@@ -23,6 +23,7 @@ if opts.train:
     parser.add_argument("--val-manifest", type=str, required=True)
 elif opts.test:
     parser.add_argument("--test-manifest", type=str, required=True)
+    parser.add_argument("--model-path", type=str, required=True)
 parser.add_argument("--model", choices=models, default="resnet34")
 parser.add_argument("--epochs", type=int, default=20)
 parser.add_argument("--lr", type=int, default=0.01)
@@ -98,16 +99,27 @@ def evaluate(model, valset, n_epoch, gpu=False):
     return {"accuracy": acc, "loss": loss}
 
 
-def test(mdl):
+def test(model, dataset, gpu=False):
     # Validate
-    mdl.eval()
+    model.eval()
     all_preds = []
     with torch.no_grad():
-        for x in tqdm(test_loader):
-            x = x.cuda()
-            out = nn.functional.softmax(mdl(x), dim=1)
+        for x, y in tqdm(dataset):
+            if gpu:
+                x = x.cuda()
+            out = nn.functional.softmax(model(x), dim=1)
             all_preds.extend([x[1] for x in out.tolist()])
     return all_preds
+
+
+def save_test_results(image_paths, prediction):
+    _outfile = "submission_test.csv"
+    with open(_outfile, "w") as f:
+        f.write(f"id,label\n")
+        for i, p in enumerate(image_paths):
+            f.write(f"{p},{prediction[i]}\n")
+    print(f"Output saved to {_outfile}")
+    return
 
 
 if __name__ == "__main__":
@@ -140,7 +152,12 @@ if __name__ == "__main__":
         logger.add_general_data(model, train_loader)
         train(model, criterion, optimizer, train_loader, eval_loader, args.epochs, lr_scheduler, args.gpu)
     else:
-        test_set = ImageDataset(args.val_manifest, test_transforms if not args.disable_transform else None)
+        training_ = torch.load(args.model_path)
+        model.load_state_dict(training_["model"])
+        print(f"Loaded model {model.name} trained for {training_['epoch']} epochs. Results: {training_['result']}")
+
+        test_set = ImageDataset(args.test_manifest, test_transforms if not args.disable_transform else None)
         test_loader = DataLoader(test_set, batch_size=64, shuffle=False, num_workers=4)
 
-        test(model)
+        preds = test(model, test_loader, args.gpu)
+        save_test_results(test_set.images_paths, preds)

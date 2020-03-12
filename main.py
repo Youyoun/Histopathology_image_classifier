@@ -90,7 +90,7 @@ def evaluate(model, valset, n_epoch, gpu=False):
         for x, y in tqdm(valset, desc="Validation: "):
             if gpu:
                 x, y = x.cuda(), y.cuda()
-            out = model(x).cpu()
+            out = model(x)
             losses.append(criterion(out, y).item())
             out = nn.functional.softmax(out, dim=1)
             preds = torch.argmax(out, dim=1)

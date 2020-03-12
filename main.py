@@ -30,7 +30,6 @@ parser.add_argument("--epochs", type=int, default=20)
 parser.add_argument("--lr", type=int, default=0.01)
 parser.add_argument("--batch-size", type=int, default=128)
 parser.add_argument("--num-workers", type=int, default=4)
-parser.add_argument("--lr", type=int, default=0.01)
 parser.add_argument("--gpu", action="store_true")
 parser.add_argument("--exp-name", type=str, default=None, help="Log dir suffix")
 parser.add_argument("--log-every", type=int, default=50, help="Log metrics every input number")
@@ -43,6 +42,10 @@ LOG_EVERY = args.log_every
 
 def train(model, loss_fn, optimizer, trainset, valset, n_epochs, scheduler=None, gpu=False):
     # Train
+    if gpu:
+        model.cuda()
+        loss_fn.cuda()
+
     for ep in range(n_epochs):
         model.train()
         pbar = tqdm(total=len(trainset))
@@ -105,6 +108,8 @@ def evaluate(model, valset, n_epoch, gpu=False):
 def test(model, dataset, gpu=False):
     # Validate
     model.eval()
+    if gpu:
+        model.cuda()
     all_preds = []
     with torch.no_grad():
         for x, y in tqdm(dataset):
@@ -133,10 +138,6 @@ if __name__ == "__main__":
         model = BinaryClassifier(args.model)
     model.apply(weights_init)
     criterion = nn.CrossEntropyLoss(reduction="sum")
-
-    if args.gpu:
-        model = model.cuda()
-        criterion = criterion.cuda()
 
     optimizer = optim.SGD(model.parameters(), lr=args.lr)
     lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
@@ -171,7 +172,7 @@ if __name__ == "__main__":
         eval_set = ImageDataset(args.val_manifest, test_transforms)
         eval_loader = DataLoader(eval_set, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
-        logger.add_general_data(model.cpu(), train_loader)
+        logger.add_general_data(model, train_loader)
         train(model, criterion, optimizer, train_loader, eval_loader, args.epochs, lr_scheduler, args.gpu)
     else:
         training_ = torch.load(args.model_path)

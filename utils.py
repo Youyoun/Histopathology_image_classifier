@@ -13,6 +13,7 @@ class Logger:
         self.best_model_ep = 0
         self.best_model_acc = 0
         self.losses = []
+        self.total_training_time = 0
 
     def add_general_data(self, model, train_loader):
         images, _ = next(iter(train_loader))

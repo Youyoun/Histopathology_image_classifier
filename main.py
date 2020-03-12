@@ -1,4 +1,5 @@
 import argparse
+import time
 
 from model import CustomCNN, BinaryClassifier, weights_init, models
 from data import ImageDataset
@@ -46,6 +47,8 @@ def train(model, loss_fn, optimizer, trainset, valset, n_epochs, scheduler=None,
         model.cuda()
         loss_fn.cuda()
 
+    start_time = time.time()
+
     for ep in range(n_epochs):
         model.train()
         pbar = tqdm(total=len(trainset))
@@ -74,7 +77,7 @@ def train(model, loss_fn, optimizer, trainset, valset, n_epochs, scheduler=None,
             "loss": logger.losses,
             "result": result
         }, f"models/model_{model.name}_ep{ep}_{result['accuracy']:.3f}.pth")
-    print(f"Training Finished. Best model {logger.best_model_ep}, accuracy: {logger.best_model_acc}")
+    logger.total_training_time = time.time() - start_time
     return
 
 
@@ -130,6 +133,14 @@ def save_test_results(image_paths, prediction):
     return
 
 
+def print_training_summary(logs: Logger, model_name):
+    print("\nTraining summary\n")
+    print(f"Trained for {args.epochs} epochs with model {model_name}")
+    print(f"Best validation accuracy obtained: {logs.best_model_acc} at epoch {logs.best_model_ep}")
+    print(f"Final training model Loss: {sum(logs.losses[-logs.train_size:]) / logs.train_size}")
+    print(f"Training took {logs.total_training_time} seconds.")
+
+
 if __name__ == "__main__":
     # Init everything
     if args.model == "custom":
@@ -174,6 +185,7 @@ if __name__ == "__main__":
 
         logger.add_general_data(model, train_loader)
         train(model, criterion, optimizer, train_loader, eval_loader, args.epochs, lr_scheduler, args.gpu)
+        print_training_summary(logger, model.name)
     else:
         training_ = torch.load(args.model_path)
         model.load_state_dict(training_["model"])

@@ -28,6 +28,9 @@ elif opts.test:
 parser.add_argument("--model", choices=models, default="resnet34")
 parser.add_argument("--epochs", type=int, default=20)
 parser.add_argument("--lr", type=int, default=0.01)
+parser.add_argument("--batch-size", type=int, default=128)
+parser.add_argument("--num-workers", type=int, default=4)
+parser.add_argument("--lr", type=int, default=0.01)
 parser.add_argument("--gpu", action="store_true")
 parser.add_argument("--exp-name", type=str, default=None, help="Log dir suffix")
 parser.add_argument("--log-every", type=int, default=50, help="Log metrics every input number")
@@ -40,8 +43,6 @@ LOG_EVERY = args.log_every
 
 def train(model, loss_fn, optimizer, trainset, valset, n_epochs, scheduler=None, gpu=False):
     # Train
-    model.train()
-
     for ep in range(n_epochs):
         model.train()
         pbar = tqdm(total=len(trainset))
@@ -165,12 +166,12 @@ if __name__ == "__main__":
 
     if args.train:
         train_set = ImageDataset(args.train_manifest, train_transforms)
-        train_loader = DataLoader(train_set, batch_size=64, shuffle=True, num_workers=4)
+        train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
 
         eval_set = ImageDataset(args.val_manifest, test_transforms)
-        eval_loader = DataLoader(eval_set, batch_size=64, shuffle=False, num_workers=4)
+        eval_loader = DataLoader(eval_set, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
-        logger.add_general_data(model, train_loader)
+        logger.add_general_data(model.cpu(), train_loader)
         train(model, criterion, optimizer, train_loader, eval_loader, args.epochs, lr_scheduler, args.gpu)
     else:
         training_ = torch.load(args.model_path)
@@ -178,7 +179,7 @@ if __name__ == "__main__":
         print(f"Loaded model {model.name} trained for {training_['epoch']} epochs. Results: {training_['result']}")
 
         test_set = ImageDataset(args.test_manifest, test_transforms)
-        test_loader = DataLoader(test_set, batch_size=64, shuffle=False, num_workers=4)
+        test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, num_workers=4)
 
         preds = test(model, test_loader, args.gpu)
         save_test_results(test_set.images_paths, preds)

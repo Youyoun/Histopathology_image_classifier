@@ -1,5 +1,5 @@
 import torch.nn as nn
-from torchvision.models import resnet18, resnet34, resnet50, vgg19, vgg16, densenet121, densenet161
+from torchvision.models import resnet18, resnet34, resnet50, vgg19, vgg16, densenet121, densenet161, mnasnet0_5
 
 models = {
     "resnet18": resnet18,
@@ -8,7 +8,8 @@ models = {
     "vgg19": vgg19,
     "vgg16": vgg16,
     "densenet121": densenet121,
-    "densenet161": densenet161
+    "densenet161": densenet161,
+    "mnasnet0_5": mnasnet0_5,
 }
 
 

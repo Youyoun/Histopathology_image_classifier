@@ -28,7 +28,7 @@ elif opts.test:
     parser.add_argument("--model-path", type=str, required=True)
 parser.add_argument("--model", choices=models, default="resnet34")
 parser.add_argument("--epochs", type=int, default=20)
-parser.add_argument("--lr", type=int, default=0.01)
+parser.add_argument("--lr", type=float, default=0.01)
 parser.add_argument("--batch-size", type=int, default=128)
 parser.add_argument("--num-workers", type=int, default=4)
 parser.add_argument("--gpu", action="store_true")

@@ -62,7 +62,7 @@ def train(model, loss_fn, optimizer, trainset, valset, n_epochs, scheduler=None,
             optimizer.zero_grad()
 
             if i % LOG_EVERY == 0:
-                acc = accuracy_score(torch.ge(preds.detach().cpu(), 0.5), y.cpu())
+                acc = accuracy_score(torch.ge(torch.sigmoid(preds.detach().cpu()), 0.5), y.cpu())
                 logger.add_training_scalars(loss.item(), acc, i + ep * len(trainset))
             pbar.update()
             pbar.set_description(f"Epoch {ep + 1}, Loss {logger.losses[-1]:.3f}")
@@ -94,6 +94,7 @@ def evaluate(model, valset, n_epoch, gpu=False):
                 x, y = x.cuda(), y.cuda()
             out = model(x)
             losses.append(criterion(out, y.float()).item())
+            out = torch.sigmoid(out)
             all_preds.extend(torch.ge(out, 0.5).tolist())
             true_labels.extend(y.cpu())
     true_labels = np.array(true_labels)
@@ -114,8 +115,8 @@ def test(model, dataset, gpu=False):
         for x, y in tqdm(dataset):
             if gpu:
                 x = x.cuda()
-            out = nn.functional.softmax(model(x), dim=1)
-            all_preds.extend([x[1] for x in out.tolist()])
+            out = torch.sigmoid(model(x))
+            all_preds.extend(out.tolist())
     return all_preds
 
 

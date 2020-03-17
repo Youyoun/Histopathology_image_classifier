@@ -162,6 +162,7 @@ if __name__ == "__main__":
         test_transforms = None
     else:
         train_transforms = transforms.Compose([
+            transforms.ToPILImage(),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             transforms.ToTensor(),
@@ -169,6 +170,7 @@ if __name__ == "__main__":
         ])
 
         test_transforms = transforms.Compose([
+            transforms.ToPILImage(),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])

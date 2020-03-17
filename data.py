@@ -1,5 +1,4 @@
-from PIL import Image
-
+import cv2
 import torch
 from torch.utils.data import Dataset
 import torchvision.transforms.functional as TF
@@ -22,7 +21,7 @@ class ImageDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        img = Image.open(self.images_paths[idx])
+        img = cv2.imread(self.images_paths[idx])
 
         if self.transform is not None:
             img = self.transform(img)

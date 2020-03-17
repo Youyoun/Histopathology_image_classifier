@@ -56,13 +56,13 @@ def train(model, loss_fn, optimizer, trainset, valset, n_epochs, scheduler=None,
             if gpu:
                 x, y = x.cuda(), y.cuda()
             preds = model(x)
-            loss = loss_fn(preds, y)
+            loss = loss_fn(preds, y.float())
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
 
             if i % LOG_EVERY == 0:
-                acc = accuracy_score(torch.argmax(preds.detach().cpu(), dim=1), y.detach().cpu())
+                acc = accuracy_score(torch.ge(preds.detach().cpu(), 0.5), y.cpu())
                 logger.add_training_scalars(loss.item(), acc, i + ep * len(trainset))
             pbar.update()
             pbar.set_description(f"Epoch {ep + 1}, Loss {logger.losses[-1]:.3f}")
@@ -87,18 +87,14 @@ def evaluate(model, valset, n_epoch, gpu=False):
     true_labels = []
     losses = []
     all_preds = []
-    all_preds_probas = []
 
     with torch.no_grad():
         for x, y in tqdm(valset, desc="Validation: "):
             if gpu:
                 x, y = x.cuda(), y.cuda()
             out = model(x)
-            losses.append(criterion(out, y).item())
-            out = nn.functional.softmax(out, dim=1)
-            preds = torch.argmax(out, dim=1)
-            all_preds.extend(preds.tolist())
-            all_preds_probas.extend([e[1] for e in out.tolist()])
+            losses.append(criterion(out, y.float()).item())
+            all_preds.extend(torch.ge(out, 0.5).tolist())
             true_labels.extend(y.cpu())
     true_labels = np.array(true_labels)
     all_preds = np.array(all_preds)
@@ -148,7 +144,7 @@ if __name__ == "__main__":
     else:
         model = BinaryClassifier(args.model)
     model.apply(weights_init)
-    criterion = nn.CrossEntropyLoss(reduction="sum")
+    criterion = nn.BCEWithLogitsLoss(reduction="mean")
 
     optimizer = optim.SGD(model.parameters(), lr=args.lr)
     lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)

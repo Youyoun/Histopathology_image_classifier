@@ -1,12 +1,14 @@
 import torch.nn as nn
-from torchvision.models import resnet18, resnet34, resnet50, vgg19, vgg16
+from torchvision.models import resnet18, resnet34, resnet50, vgg19, vgg16, densenet121, densenet161
 
 models = {
     "resnet18": resnet18,
     "resnet34": resnet34,
     "resnet50": resnet50,
     "vgg19": vgg19,
-    "vgg16": vgg16
+    "vgg16": vgg16,
+    "densenet121": densenet121,
+    "densenet161": densenet161
 }
 
 
@@ -66,20 +68,13 @@ class BinaryClassifier(nn.Module):
         if net_name not in models:
             raise ValueError(f"Model {net_name} has not been adapted to binary classification.")
         print(f"Using {net_name} model not pretrained on Imagenet")
-        self.net = models[net_name]()
-        if "resnet" in net_name:
-            assert isinstance(self.net.fc, nn.Linear), "Last layer is not linear. Pytorch code may have changed"
-            self.net.fc = nn.Linear(self.net.fc.in_features, 2, self.net.fc.bias is not None)
-        elif "vgg" in net_name:
-            assert isinstance(self.net.classifier[-1],
-                              nn.Linear), "Last layer is not linear. Pytorch code may have changed"
-            self.net.classifier[-1] = nn.Linear(self.net.classifier[-1].in_features, 2,
-                                                self.net.classifier[-1].bias is not None)
+        if net_name in models:
+            self.net = models[net_name](num_classes=1)
         else:
             raise NotImplementedError()
 
     def forward(self, x):
-        return self.net(x)
+        return self.net(x).squeeze()
 
 
 def weights_init(m):
